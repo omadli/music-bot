@@ -3,6 +3,8 @@ import os
 from uzhits_parser import Uzhits
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.utils.callback_data import CallbackData
+from slugify import slugify
+
 
 API_TOKEN = os.environ.get('API_TOKEN') # for heroku
 if API_TOKEN is None:
@@ -14,6 +16,7 @@ dp = Dispatcher(bot=bot)
 muz = Uzhits()
 
 btn_dl = CallbackData('dl', 'url')
+btn_dl_by_id = CallbackData('music', 'id', 'row')
 btn_page = CallbackData('page', 'q', 's')
 
 def build_keyboard(query: str, page: int = 1):
@@ -21,12 +24,19 @@ def build_keyboard(query: str, page: int = 1):
     musics = muz.get_musics(query, page, (page-1)*10+1)
     # print(musics)
     if musics is not None and musics:
+        i = 0
         for name, link in musics:
-            music_link = re.match(r"https:\/\/uzhits.net\/(.+)\.html", link).group(1)
+            match = re.match(r"https:\/\/uzhits.net\/([0-9]+)(*.)\.html", link)
+            music_id = match.group(1)
+            music_link = music_id + match.group(2)
+            btn = btn_dl.new(url=music_link)
+            if len(music_link) > 50:
+                btn = btn_dl_by_id.new(id=music_id, row=i)
             buttons.append([types.InlineKeyboardButton(
                 text=name,
-                callback_data=btn_dl.new(url=music_link)
+                callback_data=btn
             )])
+            i += 1
     buttons.append([
         types.InlineKeyboardButton(text="⬅️", callback_data=btn_page.new(q=query, s=page-1)),
         types.InlineKeyboardButton(text="❌", callback_data='del'),
@@ -70,6 +80,18 @@ async def dl_music(call: types.CallbackQuery, callback_data: dict):
     music_link = muz.dl(link)
     await call.message.answer_audio(music_link, caption="🚀By @uzhits_music_bot")
     await call.answer()
+
+
+@dp.callback_query_handler(btn_dl_by_id.filter())
+async def dl_music(call: types.CallbackQuery, callback_data: dict):
+    row = callback_data['row']
+    music_id = callback_data['id']
+    music_name = call.message.reply_markup.inline_keyboard[row][0].text
+    link = 'https://uzhits.net/mp3/' + music_id + '-' + slugify(music_name) + '.html'
+    # print(link)
+    music_link = muz.dl(link)
+    await call.message.answer_audio(music_link, caption="🚀By @uzhits_music_bot")
+    await call.answer(music_name)
 
 
 @dp.callback_query_handler(btn_page.filter())

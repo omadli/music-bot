@@ -81,10 +81,10 @@ async def pagination(call: types.CallbackQuery, callback_data: dict):
     page = int(callback_data['s'])
     q = callback_data['q']
     if page < 1:
-        call.answer("Birinchi sahifadasiz", show_alert=True)
+        await call.answer("Birinchi sahifadasiz", show_alert=True)
         return
     if n - s < 10:
-        call.answer("Oxirgi sahifadasiz", show_alert=True)
+        await call.answer("Oxirgi sahifadasiz", show_alert=True)
         return
     s1 = (page-1)*10+1
     k = (s1 + 9) if (n // 10 + 1 > page) else (s1 + n % 10)
@@ -95,18 +95,25 @@ async def pagination(call: types.CallbackQuery, callback_data: dict):
     
 @dp.message_handler()
 async def search_music(message: types.Message):
-    n = muz.search_n(query=message.text)
-    if n is not None and n:
-        # topildi
-        k = n if n < 10 else 10
-        await message.answer(f"<code>{message.text}</code> qidiruvi bo'yicha natijalar 1-{k} {n} tadan",
-                             reply_markup=build_keyboard(message.text))
-    else:
-        # topilmadi
+    try:
+        n = muz.search_n(query=message.text)
+        if n is not None and n:
+            # topildi
+            k = n if n < 10 else 10
+            await message.answer(f"<code>{message.text}</code> qidiruvi bo'yicha natijalar 1-{k} {n} tadan",
+                                reply_markup=build_keyboard(message.text))
+        else:
+            # topilmadi
+            await message.answer("Hech narsa topilmadi 😔", 
+                                reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+                                    [types.InlineKeyboardButton(text="❌", callback_data='del')]
+                                ]))
+    except Exception as e:
+        print(e)
         await message.answer("Hech narsa topilmadi 😔", 
-                             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-                                 [types.InlineKeyboardButton(text="❌", callback_data='del')]
-                             ]))
+                            reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+                                [types.InlineKeyboardButton(text="❌", callback_data='del')]
+                            ]))
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)

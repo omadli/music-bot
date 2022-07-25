@@ -83,13 +83,14 @@ async def pagination(call: types.CallbackQuery, callback_data: dict):
     if page < 1:
         await call.answer("Birinchi sahifadasiz", show_alert=True)
         return
-    if n - s < 10:
+    if page > (n // 10 + 1):
         await call.answer("Oxirgi sahifadasiz", show_alert=True)
         return
     s1 = (page-1)*10+1
     k = (s1 + 9) if (n // 10 + 1 > page) else (s1 + n % 10)
     await call.message.edit_text(f"<code>{q}</code> qidiruvi bo'yicha natijalar {s1}-{k} {n} tadan",
                              reply_markup=build_keyboard(q, page))
+    await call.answer(f"{page}-sahifa")
 
    
     

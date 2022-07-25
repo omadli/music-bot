@@ -1,0 +1,4 @@
+aiogram==2.19
+beautifulsoup4==4.11.1
+fake-useragent==0.1.11
+requests==2.27.1

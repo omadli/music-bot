@@ -26,9 +26,9 @@ def build_keyboard(query: str, page: int = 1):
     if musics is not None and musics:
         i = 0
         for name, link in musics:
-            match = re.match(r"https:\/\/uzhits.net\/([0-9]+)(*.)\.html", link)
-            music_id = match.group(1)
-            music_link = music_id + match.group(2)
+            match = re.match(r"https:\/\/uzhits.net\/(.*)\/([0-9]+)(.+)\.html", link)
+            music_id = match.group(2)
+            music_link = music_id + match.group(3)
             btn = btn_dl.new(url=music_link)
             if len(music_link) > 50:
                 btn = btn_dl_by_id.new(id=music_id, row=i)

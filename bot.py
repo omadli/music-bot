@@ -86,7 +86,7 @@ async def dl_music(call: types.CallbackQuery, callback_data: dict):
 async def dl_music(call: types.CallbackQuery, callback_data: dict):
     row = callback_data['row']
     music_id = callback_data['id']
-    music_name = call.message.reply_markup.inline_keyboard[row][0].text
+    music_name = call.message.reply_markup.inline_keyboard[int(row)][0].text
     link = 'https://uzhits.net/mp3/' + music_id + '-' + slugify(music_name) + '.html'
     # print(link)
     music_link = muz.dl(link)

@@ -1,6 +1,7 @@
 import re
 import os
-from uzhits_parser import Uzhits
+# from uzhits_parser import Uzhits
+from async_uzhits_parser import AsyncUzhits
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.utils.callback_data import CallbackData
 from slugify import slugify
@@ -13,15 +14,15 @@ if API_TOKEN is None:
 
 bot = Bot(token=API_TOKEN, parse_mode='html')
 dp = Dispatcher(bot=bot)
-muz = Uzhits()
+muz = AsyncUzhits()
 
 btn_dl = CallbackData('dl', 'url')
 btn_dl_by_id = CallbackData('music', 'id', 'row')
 btn_page = CallbackData('page', 'q', 's')
 
-def build_keyboard(query: str, page: int = 1):
+async def build_keyboard(query: str, page: int = 1):
     buttons = []
-    musics = muz.get_musics(query, page, (page-1)*10+1)
+    musics = await muz.get_musics(query, page, (page-1)*10+1)
     # print(musics)
     if musics is not None and musics:
         i = 0
@@ -63,7 +64,7 @@ async def cmd_help(message: types.Message):
 UZHITS_MUSIC_LINK = r"^https:\/\/uzhits\.net\/.+"
 @dp.message_handler(regexp=UZHITS_MUSIC_LINK)
 async def dl_music(message: types.Message):
-    link = muz.dl(message.text)
+    link = await muz.dl(message.text)
     print(link)
     await message.answer_audio(link, caption="🚀By @uzhits_music_bot")
 
@@ -77,7 +78,7 @@ async def del_msg(call: types.CallbackQuery):
 async def dl_music(call: types.CallbackQuery, callback_data: dict):
     link = 'https://uzhits.net/' + callback_data['url'] + '.html'
     # print(link)
-    music_link = muz.dl(link)
+    music_link = await muz.dl(link)
     await call.message.answer_audio(music_link, caption="🚀By @uzhits_music_bot")
     await call.answer()
 
@@ -89,7 +90,7 @@ async def dl_music(call: types.CallbackQuery, callback_data: dict):
     music_name = call.message.reply_markup.inline_keyboard[int(row)][0].text
     link = 'https://uzhits.net/mp3/' + music_id + '-' + slugify(music_name) + '.html'
     # print(link)
-    music_link = muz.dl(link)
+    music_link = await muz.dl(link)
     await call.message.answer_audio(music_link, caption="🚀By @uzhits_music_bot")
     await call.answer(music_name)
 
@@ -111,7 +112,7 @@ async def pagination(call: types.CallbackQuery, callback_data: dict):
     s1 = (page-1)*10+1
     k = (s1 + 9) if (n // 10 + 1 > page) else (s1 + n % 10)
     await call.message.edit_text(f"<code>{q}</code> qidiruvi bo'yicha natijalar {s1}-{k} {n} tadan",
-                             reply_markup=build_keyboard(q, page))
+                             reply_markup=await build_keyboard(q, page))
     await call.answer(f"{page}-sahifa")
 
    
@@ -119,12 +120,12 @@ async def pagination(call: types.CallbackQuery, callback_data: dict):
 @dp.message_handler()
 async def search_music(message: types.Message):
     try:
-        n = muz.search_n(query=message.text)
+        n = await muz.search_n(query=message.text)
         if n is not None and n:
             # topildi
             k = n if n < 10 else 10
             await message.answer(f"<code>{message.text}</code> qidiruvi bo'yicha natijalar 1-{k} {n} tadan",
-                                reply_markup=build_keyboard(message.text))
+                                reply_markup=await build_keyboard(message.text))
         else:
             # topilmadi
             await message.answer("Hech narsa topilmadi 😔", 
@@ -138,5 +139,13 @@ async def search_music(message: types.Message):
                                 [types.InlineKeyboardButton(text="❌", callback_data='del')]
                             ]))
 
+async def on_startup(dp):
+    await muz.start()
+    print('Bot started')
+    
+async def on_shutdown(dp):
+    await muz.close()
+    print("Bye")
+
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown)

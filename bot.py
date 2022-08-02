@@ -9,22 +9,17 @@ from slugify import slugify
 
 
 HEROKU_APP_NAME = os.getenv('HEROKU_APP_NAME')
-if HEROKU_APP_NAME is None:
-    API_TOKEN = "YOUR API TOKEN"
-    HEROKU = False
+API_TOKEN = os.environ.get('API_TOKEN') # for heroku
+HEROKU = True
 
-else:
-    API_TOKEN = os.environ.get('API_TOKEN') # for heroku
-    HEROKU = True
+# webhook settings
+WEBHOOK_HOST = f'https://{HEROKU_APP_NAME}.herokuapp.com'
+WEBHOOK_PATH = f'/webhook/{API_TOKEN}'
+WEBHOOK_URL = f'{WEBHOOK_HOST}{WEBHOOK_PATH}'
 
-    # webhook settings
-    WEBHOOK_HOST = f'https://{HEROKU_APP_NAME}.herokuapp.com'
-    WEBHOOK_PATH = f'/webhook/{API_TOKEN}'
-    WEBHOOK_URL = f'{WEBHOOK_HOST}{WEBHOOK_PATH}'
-
-    # webserver settings
-    WEBAPP_HOST = '0.0.0.0'
-    WEBAPP_PORT = os.getenv('PORT', default=443)
+# webserver settings
+WEBAPP_HOST = '0.0.0.0'
+WEBAPP_PORT = os.getenv('PORT', default=443)
 
 
 
@@ -47,15 +42,6 @@ async def on_shutdown(app: web.Application):
     await bot.delete_webhook()
     print("Bye")
 
-
-async def on_startup_polling(dp):
-    await muz.start()
-    print('Bot started')
-    
-async def on_shutdown_polling(dp):
-    await muz.close()
-    print("Bye")
-    
 
 async def proceed_update(req: web.Request):
     upds = [types.Update(**(await req.json()))]
@@ -198,22 +184,14 @@ async def search_music(message: types.Message):
     
 
 if __name__ == '__main__':
-    if HEROKU:
-        app = web.Application()
-        app.add_routes([
-            web.get("/", home),
-            web.post(WEBHOOK_PATH, execute),
-        ])
-        app.on_startup.append(on_startup)
-        app.on_shutdown.append(on_shutdown)
-        web.run_app(app,
-                    host=WEBAPP_HOST,
-                    port=WEBAPP_PORT
-                )
-    else:
-        executor.start_polling(
-            dp, 
-            skip_updates=True, 
-            on_startup=on_startup_polling, 
-            on_shutdown=on_shutdown_polling
-        )
+    app = web.Application()
+    app.add_routes([
+        web.get("/", home),
+        web.post(WEBHOOK_PATH, execute),
+    ])
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
+    web.run_app(app,
+                host=WEBAPP_HOST,
+                port=WEBAPP_PORT
+            )

@@ -1,6 +1,7 @@
 import re
 import os
 # from uzhits_parser import Uzhits
+from aiohttp import web
 from async_uzhits_parser import AsyncUzhits
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.utils.callback_data import CallbackData
@@ -23,7 +24,7 @@ else:
 
     # webserver settings
     WEBAPP_HOST = '0.0.0.0'
-    WEBAPP_PORT = os.getenv('PORT', default=8000)
+    WEBAPP_PORT = os.getenv('PORT', default=443)
 
 
 
@@ -32,16 +33,44 @@ dp = Dispatcher(bot=bot)
 muz = AsyncUzhits()
 
 
-async def on_startup(dispatcher: Dispatcher):
+async def on_startup(app: web.Application):
     await muz.start()
-    await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
+    webhook = await bot.get_webhook_info()
+    if webhook.url != WEBHOOK_URL:
+        await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
+        print("Webhook setted")
     print("Bot started")
 
 
-async def on_shutdown(dispatcher: Dispatcher):
+async def on_shutdown(app: web.Application):
     await muz.close()
     await bot.delete_webhook()
     print("Bye")
+
+
+async def on_startup_polling(dp):
+    await muz.start()
+    print('Bot started')
+    
+async def on_shutdown_polling(dp):
+    await muz.close()
+    print("Bye")
+    
+
+async def proceed_update(req: web.Request):
+    upds = [types.Update(**(await req.json()))]
+    Dispatcher.set_current(dp)
+    Bot.set_current(bot)
+    await dp.process_updates(upds)
+
+
+async def execute(req: web.Request) -> web.Response:
+    await proceed_update(req)
+    return web.Response()
+
+
+async def home(req: web.Request) -> web.Response:
+    return web.Response(text="Hello world", content_type='text/html', charset='UTF8')
 
 
 btn_dl = CallbackData('dl', 'url')
@@ -166,27 +195,21 @@ async def search_music(message: types.Message):
                             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
                                 [types.InlineKeyboardButton(text="❌", callback_data='del')]
                             ]))
-
-async def on_startup_polling(dp):
-    await muz.start()
-    print('Bot started')
-    
-async def on_shutdown_polling(dp):
-    await muz.close()
-    print("Bye")
     
 
 if __name__ == '__main__':
     if HEROKU:
-        executor.start_webhook(
-            dp,
-            webhook_path=WEBHOOK_PATH,
-            skip_updates=True,
-            on_startup=on_startup,
-            on_shutdown=on_shutdown,
-            host=WEBAPP_HOST,
-            port=WEBAPP_PORT
-        )
+        app = web.Application()
+        app.add_routes([
+            web.get("/", home),
+            web.post(WEBHOOK_PATH, execute),
+        ])
+        app.on_startup.append(on_startup)
+        app.on_shutdown.append(on_shutdown)
+        web.run_app(app,
+                    host=WEBAPP_HOST,
+                    port=WEBAPP_PORT
+                )
     else:
         executor.start_polling(
             dp, 

@@ -7,14 +7,42 @@ from aiogram.utils.callback_data import CallbackData
 from slugify import slugify
 
 
-API_TOKEN = os.environ.get('API_TOKEN') # for heroku
-if API_TOKEN is None:
-    # manual write api token
+HEROKU_APP_NAME = os.getenv('HEROKU_APP_NAME')
+if HEROKU_APP_NAME is None:
     API_TOKEN = "YOUR API TOKEN"
+    HEROKU = False
+
+else:
+    API_TOKEN = os.environ.get('API_TOKEN') # for heroku
+    HEROKU = True
+
+    # webhook settings
+    WEBHOOK_HOST = f'https://{HEROKU_APP_NAME}.herokuapp.com'
+    WEBHOOK_PATH = f'/webhook/{API_TOKEN}'
+    WEBHOOK_URL = f'{WEBHOOK_HOST}{WEBHOOK_PATH}'
+
+    # webserver settings
+    WEBAPP_HOST = '0.0.0.0'
+    WEBAPP_PORT = os.getenv('PORT', default=8000)
+
+
 
 bot = Bot(token=API_TOKEN, parse_mode='html')
 dp = Dispatcher(bot=bot)
 muz = AsyncUzhits()
+
+
+async def on_startup(dispatcher: Dispatcher):
+    await muz.start()
+    await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
+    print("Bot started")
+
+
+async def on_shutdown(dispatcher: Dispatcher):
+    await muz.close()
+    await bot.delete_webhook()
+    print("Bye")
+
 
 btn_dl = CallbackData('dl', 'url')
 btn_dl_by_id = CallbackData('music', 'id', 'row')
@@ -139,13 +167,30 @@ async def search_music(message: types.Message):
                                 [types.InlineKeyboardButton(text="❌", callback_data='del')]
                             ]))
 
-async def on_startup(dp):
+async def on_startup_polling(dp):
     await muz.start()
     print('Bot started')
     
-async def on_shutdown(dp):
+async def on_shutdown_polling(dp):
     await muz.close()
     print("Bye")
+    
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown)
+    if HEROKU:
+        executor.start_webhook(
+            dp,
+            webhook_path=WEBHOOK_PATH,
+            skip_updates=True,
+            on_startup=on_startup,
+            on_shutdown=on_shutdown,
+            host=WEBAPP_HOST,
+            port=WEBAPP_PORT
+        )
+    else:
+        executor.start_polling(
+            dp, 
+            skip_updates=True, 
+            on_startup=on_startup_polling, 
+            on_shutdown=on_shutdown_polling
+        )

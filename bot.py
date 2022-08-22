@@ -101,7 +101,7 @@ async def cmd_start(message: types.Message):
 async def cmd_help(message: types.Message):
     await message.answer("Men sizga uzhits.net saytidan qo'shiqlarni qidirishga va yuklab olishga yordam beraman.\n"
                          "Qidirmoqchi bo'lgan biror qo'shig'ingizni yoki qo'shiqchini shunchaki nomini yozing.\n"
-                         "Masalan <code>muhabbat</code>")
+                         "Masalan <code>Yulduz Usmonova</code>")
 
 
 UZHITS_MUSIC_LINK = r"^https:\/\/uzhits\.net\/.+"
